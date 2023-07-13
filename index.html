@@ -1,0 +1,715 @@
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=utf-8"/><title>Implementation Details of Proximal Policy Optimization</title><style>
+/* cspell:disable-file */
+/* webkit printing magic: print all background colors */
+html {
+	-webkit-print-color-adjust: exact;
+}
+* {
+	box-sizing: border-box;
+	-webkit-print-color-adjust: exact;
+}
+
+html,
+body {
+	margin: 0;
+	padding: 0;
+}
+@media only screen {
+	body {
+		margin: 2em auto;
+		max-width: 900px;
+		color: rgb(55, 53, 47);
+	}
+}
+
+body {
+	line-height: 1.5;
+	white-space: pre-wrap;
+}
+
+a,
+a.visited {
+	color: inherit;
+	text-decoration: underline;
+}
+
+.pdf-relative-link-path {
+	font-size: 80%;
+	color: #444;
+}
+
+h1,
+h2,
+h3 {
+	letter-spacing: -0.01em;
+	line-height: 1.2;
+	font-weight: 600;
+	margin-bottom: 0;
+}
+
+.page-title {
+	font-size: 2.5rem;
+	font-weight: 700;
+	margin-top: 0;
+	margin-bottom: 0.75em;
+}
+
+h1 {
+	font-size: 1.875rem;
+	margin-top: 1.875rem;
+}
+
+h2 {
+	font-size: 1.5rem;
+	margin-top: 1.5rem;
+}
+
+h3 {
+	font-size: 1.25rem;
+	margin-top: 1.25rem;
+}
+
+.source {
+	border: 1px solid #ddd;
+	border-radius: 3px;
+	padding: 1.5em;
+	word-break: break-all;
+}
+
+.callout {
+	border-radius: 3px;
+	padding: 1rem;
+}
+
+figure {
+	margin: 1.25em 0;
+	page-break-inside: avoid;
+}
+
+figcaption {
+	opacity: 0.5;
+	font-size: 85%;
+	margin-top: 0.5em;
+}
+
+mark {
+	background-color: transparent;
+}
+
+.indented {
+	padding-left: 1.5em;
+}
+
+hr {
+	background: transparent;
+	display: block;
+	width: 100%;
+	height: 1px;
+	visibility: visible;
+	border: none;
+	border-bottom: 1px solid rgba(55, 53, 47, 0.09);
+}
+
+img {
+	max-width: 100%;
+}
+
+@media only print {
+	img {
+		max-height: 100vh;
+		object-fit: contain;
+	}
+}
+
+@page {
+	margin: 1in;
+}
+
+.collection-content {
+	font-size: 0.875rem;
+}
+
+.column-list {
+	display: flex;
+	justify-content: space-between;
+}
+
+.column {
+	padding: 0 1em;
+}
+
+.column:first-child {
+	padding-left: 0;
+}
+
+.column:last-child {
+	padding-right: 0;
+}
+
+.table_of_contents-item {
+	display: block;
+	font-size: 0.875rem;
+	line-height: 1.3;
+	padding: 0.125rem;
+}
+
+.table_of_contents-indent-1 {
+	margin-left: 1.5rem;
+}
+
+.table_of_contents-indent-2 {
+	margin-left: 3rem;
+}
+
+.table_of_contents-indent-3 {
+	margin-left: 4.5rem;
+}
+
+.table_of_contents-link {
+	text-decoration: none;
+	opacity: 0.7;
+	border-bottom: 1px solid rgba(55, 53, 47, 0.18);
+}
+
+table,
+th,
+td {
+	border: 1px solid rgba(55, 53, 47, 0.09);
+	border-collapse: collapse;
+}
+
+table {
+	border-left: none;
+	border-right: none;
+}
+
+th,
+td {
+	font-weight: normal;
+	padding: 0.25em 0.5em;
+	line-height: 1.5;
+	min-height: 1.5em;
+	text-align: left;
+}
+
+th {
+	color: rgba(55, 53, 47, 0.6);
+}
+
+ol,
+ul {
+	margin: 0;
+	margin-block-start: 0.6em;
+	margin-block-end: 0.6em;
+}
+
+li > ol:first-child,
+li > ul:first-child {
+	margin-block-start: 0.6em;
+}
+
+ul > li {
+	list-style: disc;
+}
+
+ul.to-do-list {
+	padding-inline-start: 0;
+}
+
+ul.to-do-list > li {
+	list-style: none;
+}
+
+.to-do-children-checked {
+	text-decoration: line-through;
+	opacity: 0.375;
+}
+
+ul.toggle > li {
+	list-style: none;
+}
+
+ul {
+	padding-inline-start: 1.7em;
+}
+
+ul > li {
+	padding-left: 0.1em;
+}
+
+ol {
+	padding-inline-start: 1.6em;
+}
+
+ol > li {
+	padding-left: 0.2em;
+}
+
+.mono ol {
+	padding-inline-start: 2em;
+}
+
+.mono ol > li {
+	text-indent: -0.4em;
+}
+
+.toggle {
+	padding-inline-start: 0em;
+	list-style-type: none;
+}
+
+/* Indent toggle children */
+.toggle > li > details {
+	padding-left: 1.7em;
+}
+
+.toggle > li > details > summary {
+	margin-left: -1.1em;
+}
+
+.selected-value {
+	display: inline-block;
+	padding: 0 0.5em;
+	background: rgba(206, 205, 202, 0.5);
+	border-radius: 3px;
+	margin-right: 0.5em;
+	margin-top: 0.3em;
+	margin-bottom: 0.3em;
+	white-space: nowrap;
+}
+
+.collection-title {
+	display: inline-block;
+	margin-right: 1em;
+}
+
+.page-description {
+    margin-bottom: 2em;
+}
+
+.simple-table {
+	margin-top: 1em;
+	font-size: 0.875rem;
+	empty-cells: show;
+}
+.simple-table td {
+	height: 29px;
+	min-width: 120px;
+}
+
+.simple-table th {
+	height: 29px;
+	min-width: 120px;
+}
+
+.simple-table-header-color {
+	background: rgb(247, 246, 243);
+	color: black;
+}
+.simple-table-header {
+	font-weight: 500;
+}
+
+time {
+	opacity: 0.5;
+}
+
+.icon {
+	display: inline-block;
+	max-width: 1.2em;
+	max-height: 1.2em;
+	text-decoration: none;
+	vertical-align: text-bottom;
+	margin-right: 0.5em;
+}
+
+img.icon {
+	border-radius: 3px;
+}
+
+.user-icon {
+	width: 1.5em;
+	height: 1.5em;
+	border-radius: 100%;
+	margin-right: 0.5rem;
+}
+
+.user-icon-inner {
+	font-size: 0.8em;
+}
+
+.text-icon {
+	border: 1px solid #000;
+	text-align: center;
+}
+
+.page-cover-image {
+	display: block;
+	object-fit: cover;
+	width: 100%;
+	max-height: 30vh;
+}
+
+.page-header-icon {
+	font-size: 3rem;
+	margin-bottom: 1rem;
+}
+
+.page-header-icon-with-cover {
+	margin-top: -0.72em;
+	margin-left: 0.07em;
+}
+
+.page-header-icon img {
+	border-radius: 3px;
+}
+
+.link-to-page {
+	margin: 1em 0;
+	padding: 0;
+	border: none;
+	font-weight: 500;
+}
+
+p > .user {
+	opacity: 0.5;
+}
+
+td > .user,
+td > time {
+	white-space: nowrap;
+}
+
+input[type="checkbox"] {
+	transform: scale(1.5);
+	margin-right: 0.6em;
+	vertical-align: middle;
+}
+
+p {
+	margin-top: 0.5em;
+	margin-bottom: 0.5em;
+}
+
+.image {
+	border: none;
+	margin: 1.5em 0;
+	padding: 0;
+	border-radius: 0;
+	text-align: center;
+}
+
+.code,
+code {
+	background: rgba(135, 131, 120, 0.15);
+	border-radius: 3px;
+	padding: 0.2em 0.4em;
+	border-radius: 3px;
+	font-size: 85%;
+	tab-size: 2;
+}
+
+code {
+	color: #eb5757;
+}
+
+.code {
+	padding: 1.5em 1em;
+}
+
+.code-wrap {
+	white-space: pre-wrap;
+	word-break: break-all;
+}
+
+.code > code {
+	background: none;
+	padding: 0;
+	font-size: 100%;
+	color: inherit;
+}
+
+blockquote {
+	font-size: 1.25em;
+	margin: 1em 0;
+	padding-left: 1em;
+	border-left: 3px solid rgb(55, 53, 47);
+}
+
+.bookmark {
+	text-decoration: none;
+	max-height: 8em;
+	padding: 0;
+	display: flex;
+	width: 100%;
+	align-items: stretch;
+}
+
+.bookmark-title {
+	font-size: 0.85em;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	height: 1.75em;
+	white-space: nowrap;
+}
+
+.bookmark-text {
+	display: flex;
+	flex-direction: column;
+}
+
+.bookmark-info {
+	flex: 4 1 180px;
+	padding: 12px 14px 14px;
+	display: flex;
+	flex-direction: column;
+	justify-content: space-between;
+}
+
+.bookmark-image {
+	width: 33%;
+	flex: 1 1 180px;
+	display: block;
+	position: relative;
+	object-fit: cover;
+	border-radius: 1px;
+}
+
+.bookmark-description {
+	color: rgba(55, 53, 47, 0.6);
+	font-size: 0.75em;
+	overflow: hidden;
+	max-height: 4.5em;
+	word-break: break-word;
+}
+
+.bookmark-href {
+	font-size: 0.75em;
+	margin-top: 0.25em;
+}
+
+.sans { font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, "Apple Color Emoji", Arial, sans-serif, "Segoe UI Emoji", "Segoe UI Symbol"; }
+.code { font-family: "SFMono-Regular", Menlo, Consolas, "PT Mono", "Liberation Mono", Courier, monospace; }
+.serif { font-family: Lyon-Text, Georgia, ui-serif, serif; }
+.mono { font-family: iawriter-mono, Nitti, Menlo, Courier, monospace; }
+.pdf .sans { font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, "Apple Color Emoji", Arial, sans-serif, "Segoe UI Emoji", "Segoe UI Symbol", 'Twemoji', 'Noto Color Emoji', 'Noto Sans CJK JP'; }
+.pdf:lang(zh-CN) .sans { font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, "Apple Color Emoji", Arial, sans-serif, "Segoe UI Emoji", "Segoe UI Symbol", 'Twemoji', 'Noto Color Emoji', 'Noto Sans CJK SC'; }
+.pdf:lang(zh-TW) .sans { font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, "Apple Color Emoji", Arial, sans-serif, "Segoe UI Emoji", "Segoe UI Symbol", 'Twemoji', 'Noto Color Emoji', 'Noto Sans CJK TC'; }
+.pdf:lang(ko-KR) .sans { font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, "Apple Color Emoji", Arial, sans-serif, "Segoe UI Emoji", "Segoe UI Symbol", 'Twemoji', 'Noto Color Emoji', 'Noto Sans CJK KR'; }
+.pdf .code { font-family: Source Code Pro, "SFMono-Regular", Menlo, Consolas, "PT Mono", "Liberation Mono", Courier, monospace, 'Twemoji', 'Noto Color Emoji', 'Noto Sans Mono CJK JP'; }
+.pdf:lang(zh-CN) .code { font-family: Source Code Pro, "SFMono-Regular", Menlo, Consolas, "PT Mono", "Liberation Mono", Courier, monospace, 'Twemoji', 'Noto Color Emoji', 'Noto Sans Mono CJK SC'; }
+.pdf:lang(zh-TW) .code { font-family: Source Code Pro, "SFMono-Regular", Menlo, Consolas, "PT Mono", "Liberation Mono", Courier, monospace, 'Twemoji', 'Noto Color Emoji', 'Noto Sans Mono CJK TC'; }
+.pdf:lang(ko-KR) .code { font-family: Source Code Pro, "SFMono-Regular", Menlo, Consolas, "PT Mono", "Liberation Mono", Courier, monospace, 'Twemoji', 'Noto Color Emoji', 'Noto Sans Mono CJK KR'; }
+.pdf .serif { font-family: PT Serif, Lyon-Text, Georgia, ui-serif, serif, 'Twemoji', 'Noto Color Emoji', 'Noto Serif CJK JP'; }
+.pdf:lang(zh-CN) .serif { font-family: PT Serif, Lyon-Text, Georgia, ui-serif, serif, 'Twemoji', 'Noto Color Emoji', 'Noto Serif CJK SC'; }
+.pdf:lang(zh-TW) .serif { font-family: PT Serif, Lyon-Text, Georgia, ui-serif, serif, 'Twemoji', 'Noto Color Emoji', 'Noto Serif CJK TC'; }
+.pdf:lang(ko-KR) .serif { font-family: PT Serif, Lyon-Text, Georgia, ui-serif, serif, 'Twemoji', 'Noto Color Emoji', 'Noto Serif CJK KR'; }
+.pdf .mono { font-family: PT Mono, iawriter-mono, Nitti, Menlo, Courier, monospace, 'Twemoji', 'Noto Color Emoji', 'Noto Sans Mono CJK JP'; }
+.pdf:lang(zh-CN) .mono { font-family: PT Mono, iawriter-mono, Nitti, Menlo, Courier, monospace, 'Twemoji', 'Noto Color Emoji', 'Noto Sans Mono CJK SC'; }
+.pdf:lang(zh-TW) .mono { font-family: PT Mono, iawriter-mono, Nitti, Menlo, Courier, monospace, 'Twemoji', 'Noto Color Emoji', 'Noto Sans Mono CJK TC'; }
+.pdf:lang(ko-KR) .mono { font-family: PT Mono, iawriter-mono, Nitti, Menlo, Courier, monospace, 'Twemoji', 'Noto Color Emoji', 'Noto Sans Mono CJK KR'; }
+.highlight-default {
+	color: rgba(55, 53, 47, 1);
+}
+.highlight-gray {
+	color: rgba(120, 119, 116, 1);
+	fill: rgba(120, 119, 116, 1);
+}
+.highlight-brown {
+	color: rgba(159, 107, 83, 1);
+	fill: rgba(159, 107, 83, 1);
+}
+.highlight-orange {
+	color: rgba(217, 115, 13, 1);
+	fill: rgba(217, 115, 13, 1);
+}
+.highlight-yellow {
+	color: rgba(203, 145, 47, 1);
+	fill: rgba(203, 145, 47, 1);
+}
+.highlight-teal {
+	color: rgba(68, 131, 97, 1);
+	fill: rgba(68, 131, 97, 1);
+}
+.highlight-blue {
+	color: rgba(51, 126, 169, 1);
+	fill: rgba(51, 126, 169, 1);
+}
+.highlight-purple {
+	color: rgba(144, 101, 176, 1);
+	fill: rgba(144, 101, 176, 1);
+}
+.highlight-pink {
+	color: rgba(193, 76, 138, 1);
+	fill: rgba(193, 76, 138, 1);
+}
+.highlight-red {
+	color: rgba(212, 76, 71, 1);
+	fill: rgba(212, 76, 71, 1);
+}
+.highlight-gray_background {
+	background: rgba(241, 241, 239, 1);
+}
+.highlight-brown_background {
+	background: rgba(244, 238, 238, 1);
+}
+.highlight-orange_background {
+	background: rgba(251, 236, 221, 1);
+}
+.highlight-yellow_background {
+	background: rgba(251, 243, 219, 1);
+}
+.highlight-teal_background {
+	background: rgba(237, 243, 236, 1);
+}
+.highlight-blue_background {
+	background: rgba(231, 243, 248, 1);
+}
+.highlight-purple_background {
+	background: rgba(244, 240, 247, 0.8);
+}
+.highlight-pink_background {
+	background: rgba(249, 238, 243, 0.8);
+}
+.highlight-red_background {
+	background: rgba(253, 235, 236, 1);
+}
+.block-color-default {
+	color: inherit;
+	fill: inherit;
+}
+.block-color-gray {
+	color: rgba(120, 119, 116, 1);
+	fill: rgba(120, 119, 116, 1);
+}
+.block-color-brown {
+	color: rgba(159, 107, 83, 1);
+	fill: rgba(159, 107, 83, 1);
+}
+.block-color-orange {
+	color: rgba(217, 115, 13, 1);
+	fill: rgba(217, 115, 13, 1);
+}
+.block-color-yellow {
+	color: rgba(203, 145, 47, 1);
+	fill: rgba(203, 145, 47, 1);
+}
+.block-color-teal {
+	color: rgba(68, 131, 97, 1);
+	fill: rgba(68, 131, 97, 1);
+}
+.block-color-blue {
+	color: rgba(51, 126, 169, 1);
+	fill: rgba(51, 126, 169, 1);
+}
+.block-color-purple {
+	color: rgba(144, 101, 176, 1);
+	fill: rgba(144, 101, 176, 1);
+}
+.block-color-pink {
+	color: rgba(193, 76, 138, 1);
+	fill: rgba(193, 76, 138, 1);
+}
+.block-color-red {
+	color: rgba(212, 76, 71, 1);
+	fill: rgba(212, 76, 71, 1);
+}
+.block-color-gray_background {
+	background: rgba(241, 241, 239, 1);
+}
+.block-color-brown_background {
+	background: rgba(244, 238, 238, 1);
+}
+.block-color-orange_background {
+	background: rgba(251, 236, 221, 1);
+}
+.block-color-yellow_background {
+	background: rgba(251, 243, 219, 1);
+}
+.block-color-teal_background {
+	background: rgba(237, 243, 236, 1);
+}
+.block-color-blue_background {
+	background: rgba(231, 243, 248, 1);
+}
+.block-color-purple_background {
+	background: rgba(244, 240, 247, 0.8);
+}
+.block-color-pink_background {
+	background: rgba(249, 238, 243, 0.8);
+}
+.block-color-red_background {
+	background: rgba(253, 235, 236, 1);
+}
+.select-value-color-interactiveBlue { background-color: rgba(35, 131, 226, .07); }
+.select-value-color-pink { background-color: rgba(245, 224, 233, 1); }
+.select-value-color-purple { background-color: rgba(232, 222, 238, 1); }
+.select-value-color-green { background-color: rgba(219, 237, 219, 1); }
+.select-value-color-gray { background-color: rgba(227, 226, 224, 1); }
+.select-value-color-translucentGray { background-color: rgba(255, 255, 255, 0.0375); }
+.select-value-color-orange { background-color: rgba(250, 222, 201, 1); }
+.select-value-color-brown { background-color: rgba(238, 224, 218, 1); }
+.select-value-color-red { background-color: rgba(255, 226, 221, 1); }
+.select-value-color-yellow { background-color: rgba(253, 236, 200, 1); }
+.select-value-color-blue { background-color: rgba(211, 229, 239, 1); }
+.select-value-color-pageGlass { background-color: undefined; }
+.select-value-color-washGlass { background-color: undefined; }
+
+.checkbox {
+	display: inline-flex;
+	vertical-align: text-bottom;
+	width: 16;
+	height: 16;
+	background-size: 16px;
+	margin-left: 2px;
+	margin-right: 5px;
+}
+
+.checkbox-on {
+	background-image: url("data:image/svg+xml;charset=UTF-8,%3Csvg%20width%3D%2216%22%20height%3D%2216%22%20viewBox%3D%220%200%2016%2016%22%20fill%3D%22none%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%0A%3Crect%20width%3D%2216%22%20height%3D%2216%22%20fill%3D%22%2358A9D7%22%2F%3E%0A%3Cpath%20d%3D%22M6.71429%2012.2852L14%204.9995L12.7143%203.71436L6.71429%209.71378L3.28571%206.2831L2%207.57092L6.71429%2012.2852Z%22%20fill%3D%22white%22%2F%3E%0A%3C%2Fsvg%3E");
+}
+
+.checkbox-off {
+	background-image: url("data:image/svg+xml;charset=UTF-8,%3Csvg%20width%3D%2216%22%20height%3D%2216%22%20viewBox%3D%220%200%2016%2016%22%20fill%3D%22none%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%0A%3Crect%20x%3D%220.75%22%20y%3D%220.75%22%20width%3D%2214.5%22%20height%3D%2214.5%22%20fill%3D%22white%22%20stroke%3D%22%2336352F%22%20stroke-width%3D%221.5%22%2F%3E%0A%3C%2Fsvg%3E");
+}
+	
+</style></head><body><article id="be3ff91a-77e3-42e2-8ad9-eb408ad307af" class="page sans"><header><h1 class="page-title">Implementation Details of Proximal Policy Optimization</h1><p class="page-description"></p></header><div class="page-body"><h1 id="63e80c2b-6d21-4ac3-bbca-236fbe072b92" class="">Implementation Details</h1><h2 id="dba12cd3-72f4-4883-8aeb-6e00080fa21d" class="">1. Vectorized architecture</h2><h2 id="d0506afe-2c5e-4b3e-9a1a-30335b31ff7f" class="">2. Orthogonal Initialization of Weights and Constant Initialization of biases</h2><p id="ef2d582c-e078-467f-b887-20db3dcbb26f" class="">In general, the weights of hidden layers use orthogonal initialization of weights with scaling <em>np.sqrt(2), </em>and the biases are set to 0, as shown in the CNN initialization for Atari ,</p><figure id="90d06d38-2c45-4971-8bda-0ad15198ef2d"><a href="https://github.com/openai/baselines/blob/ea25b9e8b234e6ee1bca43083f8f3cf974143998/baselines/common/models.py#L15-L26" class="bookmark source"><div class="bookmark-info"><div class="bookmark-text"><div class="bookmark-title"></div></div><div class="bookmark-href">https://github.com/openai/baselines/blob/ea25b9e8b234e6ee1bca43083f8f3cf974143998/baselines/common/models.py#L15-L26</div></div></a></figure><p id="1eccaab4-8535-4087-9eb4-3471363b7a09" class="">and the MLP initialization for Mujoco </p><figure id="bb826afd-acc9-48e4-b2e1-76378ce26b3a"><a href="https://github.com/openai/baselines/blob/ea25b9e8b234e6ee1bca43083f8f3cf974143998/baselines/common/models.py#L75-L103" class="bookmark source"><div class="bookmark-info"><div class="bookmark-text"><div class="bookmark-title"></div></div><div class="bookmark-href">https://github.com/openai/baselines/blob/ea25b9e8b234e6ee1bca43083f8f3cf974143998/baselines/common/models.py#L75-L103</div></div></a></figure><p id="97f522b1-0219-4e2f-b1b3-79aeb2fb1963" class="">However, the policy output layer weights are initialized with the scale of 0.01. The value output layer weights are initialized with the scale of 1.</p><figure id="39deb881-8a24-46e1-9972-91f678b7dcb6"><a href="https://github.com/openai/baselines/blob/ea25b9e8b234e6ee1bca43083f8f3cf974143998/baselines/common/policies.py#L49-L63" class="bookmark source"><div class="bookmark-info"><div class="bookmark-text"><div class="bookmark-title"></div></div><div class="bookmark-href">https://github.com/openai/baselines/blob/ea25b9e8b234e6ee1bca43083f8f3cf974143998/baselines/common/policies.py#L49-L63</div></div></a></figure><h2 id="15e1d76d-ad58-4c1b-8a5b-2cf5c5180bc3" class="">3. The Adam Optimizer’s Epsilon Parameter</h2><p id="afcf0717-909d-4d5a-8e21-33d20c49854f" class="">PPO sets the epsilon parameter to 1e-5, which is different from the default epsilon of 1e-8 in PyTorch and 1e-7 in TensorFlow.</p><h2 id="1b496451-2c7b-4e83-aa4e-7bff96e25c8e" class="">4. Adam Learning Rate Annealing</h2><p id="173c517f-4bba-42ad-841d-2c21176a7d36" class="">By default, the hyper-parameters for training agents playing Atari games set the learning rate to linearly decay from 2.5e-4 to 0 as the number of timesteps increases. In MuJoCo, the learning rate linearly decays from 3e-4 to 0.</p><h3 id="7974b4a8-638c-40de-98cd-b54b42c1ef85" class="">5. Generalized Advantage Estimation</h3><p id="9ff90eff-3c5b-4504-9f84-e34af8fd3dce" class=""><strong><strong><strong><strong><strong><strong><strong><strong><strong><strong>Value bootstrap</strong></strong></strong></strong></strong></strong></strong></strong></strong></strong></p><p id="2e388734-cfa0-4b56-9746-49ec05de373b" class=""><strong><strong><strong>TD(gamma)</strong></strong></strong></p><h3 id="69a7c200-72cb-40c7-94b1-378e7acb54b7" class="">6. Mini-batch Updates</h3><p id="2753e0cb-95f2-4db7-bb57-40f04a8588e0" class="">During the learning phase of the vectorized architecture, the PPO implementation shuffles the indices of the training data of size N * M and breaks it into mini-batches to compute the gradient and update the policy.</p><ul id="fc4b375b-886b-4b8b-9a72-dc1baed22869" class="bulleted-list"><li style="list-style-type:disc">Don’t use the whole batch for update directly.</li></ul><ul id="9df3e534-5f73-4238-aaf6-ac8d3333486d" class="bulleted-list"><li style="list-style-type:disc">Guarantee all training data points are fetched.</li></ul><h3 id="c4e6cfa7-68af-4983-9738-848dbd97e00e" class="">7. Normalization of Advantages</h3><p id="59810a69-8fc2-47c6-b164-caf9025651a5" class="">After calculating the advantages based on GAE, PPO normalized the advantages by subtracting their mean and dividing them by their standard deviation. </p><ul id="11e00da1-8678-489c-bec7-560e86e1a450" class="bulleted-list"><li style="list-style-type:disc">In particular, this normalization happens at the minibatch level instead of the whole batch level.</li></ul><h3 id="ec1682c6-66ac-4837-a2bc-c9cc973c8bdd" class="">8. Clipped surrogate objective</h3><ul id="70801799-1b12-47d5-8f20-d8dd210a0739" class="bulleted-list"><li style="list-style-type:disc">PPO clips the objective as suggested in the paper.</li></ul><h3 id="1a63d6ea-c8d3-4efe-a3db-518d9afcdce7" class="">9. Value Function Loss Clipping</h3><p id="ff6a30b7-2315-4bec-8471-a46bf767450c" class="">PPO clips the value function like the PPO’s clipped surrogate objective. Given the </p><figure id="47fbdafd-2f65-4682-acad-25307fc6f027" class="equation"><style>@import url('https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.13.2/katex.min.css')</style><div class="equation-container"><span class="katex-display"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><semantics><mrow><msub><mi>V</mi><mrow><mi>t</mi><mi>a</mi><mi>r</mi><mi>g</mi><mi>e</mi><mi>t</mi></mrow></msub><mo>=</mo><mi>r</mi><mi>e</mi><mi>t</mi><mi>u</mi><mi>r</mi><mi>n</mi><mi>s</mi><mo>=</mo><mi>a</mi><mi>d</mi><mi>v</mi><mi>a</mi><mi>n</mi><mi>t</mi><mi>a</mi><mi>g</mi><mi>e</mi><mi>s</mi><mo>+</mo><mi>v</mi><mi>a</mi><mi>l</mi><mi>u</mi><mi>e</mi><mi>s</mi></mrow><annotation encoding="application/x-tex">V_{target} = returns = advantages + values</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.969438em;vertical-align:-0.286108em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.22222em;">V</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.28055599999999997em;"><span style="top:-2.5500000000000003em;margin-left:-0.22222em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">t</span><span class="mord mathnormal mtight">a</span><span class="mord mathnormal mtight" style="margin-right:0.02778em;">r</span><span class="mord mathnormal mtight" style="margin-right:0.03588em;">g</span><span class="mord mathnormal mtight">e</span><span class="mord mathnormal mtight">t</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.286108em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.2777777777777778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2777777777777778em;"></span></span><span class="base"><span class="strut" style="height:0.61508em;vertical-align:0em;"></span><span class="mord mathnormal">re</span><span class="mord mathnormal">t</span><span class="mord mathnormal">u</span><span class="mord mathnormal" style="margin-right:0.02778em;">r</span><span class="mord mathnormal">n</span><span class="mord mathnormal">s</span><span class="mspace" style="margin-right:0.2777777777777778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2777777777777778em;"></span></span><span class="base"><span class="strut" style="height:0.8888799999999999em;vertical-align:-0.19444em;"></span><span class="mord mathnormal">a</span><span class="mord mathnormal">d</span><span class="mord mathnormal" style="margin-right:0.03588em;">v</span><span class="mord mathnormal">an</span><span class="mord mathnormal">t</span><span class="mord mathnormal">a</span><span class="mord mathnormal" style="margin-right:0.03588em;">g</span><span class="mord mathnormal">es</span><span class="mspace" style="margin-right:0.2222222222222222em;"></span><span class="mbin">+</span><span class="mspace" style="margin-right:0.2222222222222222em;"></span></span><span class="base"><span class="strut" style="height:0.69444em;vertical-align:0em;"></span><span class="mord mathnormal" style="margin-right:0.03588em;">v</span><span class="mord mathnormal">a</span><span class="mord mathnormal" style="margin-right:0.01968em;">l</span><span class="mord mathnormal">u</span><span class="mord mathnormal">es</span></span></span></span></span></div></figure><p id="0994ebb5-ea52-4526-9081-0f141bd78c98" class="">PPO fits the value network by minimizing the following loss : </p><figure id="716d67b8-86f6-4236-b9e8-9c92198d87a1" class="equation"><style>@import url('https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.13.2/katex.min.css')</style><div class="equation-container"><span class="katex-display"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><semantics><mrow><msup><mi>L</mi><mi>V</mi></msup><mo>=</mo><mi>m</mi><mi>a</mi><mi>x</mi><mo stretchy="false">(</mo><mo stretchy="false">(</mo><msub><mi>V</mi><msub><mi>θ</mi><mi>t</mi></msub></msub><mo>−</mo><msub><mi>V</mi><mrow><mi>t</mi><mi>a</mi><mi>r</mi><mi>g</mi><mi>e</mi><mi>t</mi></mrow></msub><msup><mo stretchy="false">)</mo><mn>2</mn></msup><mo separator="true">,</mo><mo stretchy="false">(</mo><mi>c</mi><mi>l</mi><mi>i</mi><mi>p</mi><mo stretchy="false">(</mo><msub><mi>V</mi><msub><mi>θ</mi><mi>t</mi></msub></msub><mo separator="true">,</mo><msub><mi>V</mi><msub><mi>θ</mi><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub></msub><mo>−</mo><mi>ϵ</mi><mo separator="true">,</mo><msub><mi>V</mi><msub><mi>θ</mi><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub></msub><mo>+</mo><mi>ϵ</mi><mo stretchy="false">)</mo><mo>−</mo><msub><mi>V</mi><mrow><mi>t</mi><mi>a</mi><mi>r</mi><mi>g</mi></mrow></msub><msup><mo stretchy="false">)</mo><mn>2</mn></msup><mo stretchy="false">)</mo></mrow><annotation encoding="application/x-tex">L^{V} = max( (V_{\theta_{t}} - V_{target})^{2}, (clip(V_{\theta_{t}},V_{\theta_{t-1}}-\epsilon,V_{\theta_{t-1}} + \epsilon)-V_{targ})^{2})</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.8913309999999999em;vertical-align:0em;"></span><span class="mord"><span class="mord mathnormal">L</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.8913309999999999em;"><span style="top:-3.113em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight" style="margin-right:0.22222em;">V</span></span></span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.2777777777777778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2777777777777778em;"></span></span><span class="base"><span class="strut" style="height:1.0001em;vertical-align:-0.2501em;"></span><span class="mord mathnormal">ma</span><span class="mord mathnormal">x</span><span class="mopen">((</span><span class="mord"><span class="mord mathnormal" style="margin-right:0.22222em;">V</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.33610799999999996em;"><span style="top:-2.5500000000000003em;margin-left:-0.22222em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mtight"><span class="mord mathnormal mtight" style="margin-right:0.02778em;">θ</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.29634285714285713em;"><span style="top:-2.357em;margin-left:-0.02778em;margin-right:0.07142857142857144em;"><span class="pstrut" style="height:2.5em;"></span><span class="sizing reset-size3 size1 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">t</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.143em;"><span></span></span></span></span></span></span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.2501em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.2222222222222222em;"></span><span class="mbin">−</span><span class="mspace" style="margin-right:0.2222222222222222em;"></span></span><span class="base"><span class="strut" style="height:1.155873em;vertical-align:-0.291765em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.22222em;">V</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.28055599999999997em;"><span style="top:-2.5500000000000003em;margin-left:-0.22222em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">t</span><span class="mord mathnormal mtight">a</span><span class="mord mathnormal mtight" style="margin-right:0.02778em;">r</span><span class="mord mathnormal mtight" style="margin-right:0.03588em;">g</span><span class="mord mathnormal mtight">e</span><span class="mord mathnormal mtight">t</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.286108em;"><span></span></span></span></span></span></span><span class="mclose"><span class="mclose">)</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.8641079999999999em;"><span style="top:-3.113em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mtight">2</span></span></span></span></span></span></span></span></span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.16666666666666666em;"></span><span class="mopen">(</span><span class="mord mathnormal">c</span><span class="mord mathnormal" style="margin-right:0.01968em;">l</span><span class="mord mathnormal">i</span><span class="mord mathnormal">p</span><span class="mopen">(</span><span class="mord"><span class="mord mathnormal" style="margin-right:0.22222em;">V</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.33610799999999996em;"><span style="top:-2.5500000000000003em;margin-left:-0.22222em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mtight"><span class="mord mathnormal mtight" style="margin-right:0.02778em;">θ</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.29634285714285713em;"><span style="top:-2.357em;margin-left:-0.02778em;margin-right:0.07142857142857144em;"><span class="pstrut" style="height:2.5em;"></span><span class="sizing reset-size3 size1 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">t</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.143em;"><span></span></span></span></span></span></span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.2501em;"><span></span></span></span></span></span></span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.16666666666666666em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.22222em;">V</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3361079999999999em;"><span style="top:-2.5500000000000003em;margin-left:-0.22222em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mtight"><span class="mord mathnormal mtight" style="margin-right:0.02778em;">θ</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3173142857142857em;"><span style="top:-2.357em;margin-left:-0.02778em;margin-right:0.07142857142857144em;"><span class="pstrut" style="height:2.5em;"></span><span class="sizing reset-size3 size1 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">t</span><span class="mbin mtight">−</span><span class="mord mtight">1</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.20252142857142857em;"><span></span></span></span></span></span></span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.291765em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.2222222222222222em;"></span><span class="mbin">−</span><span class="mspace" style="margin-right:0.2222222222222222em;"></span></span><span class="base"><span class="strut" style="height:0.975095em;vertical-align:-0.291765em;"></span><span class="mord mathnormal">ϵ</span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.16666666666666666em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.22222em;">V</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3361079999999999em;"><span style="top:-2.5500000000000003em;margin-left:-0.22222em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mtight"><span class="mord mathnormal mtight" style="margin-right:0.02778em;">θ</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3173142857142857em;"><span style="top:-2.357em;margin-left:-0.02778em;margin-right:0.07142857142857144em;"><span class="pstrut" style="height:2.5em;"></span><span class="sizing reset-size3 size1 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">t</span><span class="mbin mtight">−</span><span class="mord mtight">1</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.20252142857142857em;"><span></span></span></span></span></span></span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.291765em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.2222222222222222em;"></span><span class="mbin">+</span><span class="mspace" style="margin-right:0.2222222222222222em;"></span></span><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord mathnormal">ϵ</span><span class="mclose">)</span><span class="mspace" style="margin-right:0.2222222222222222em;"></span><span class="mbin">−</span><span class="mspace" style="margin-right:0.2222222222222222em;"></span></span><span class="base"><span class="strut" style="height:1.150216em;vertical-align:-0.286108em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.22222em;">V</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.28055599999999997em;"><span style="top:-2.5500000000000003em;margin-left:-0.22222em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">t</span><span class="mord mathnormal mtight">a</span><span class="mord mathnormal mtight" style="margin-right:0.02778em;">r</span><span class="mord mathnormal mtight" style="margin-right:0.03588em;">g</span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.286108em;"><span></span></span></span></span></span></span><span class="mclose"><span class="mclose">)</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.8641079999999999em;"><span style="top:-3.113em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mtight">2</span></span></span></span></span></span></span></span></span><span class="mclose">)</span></span></span></span></span></div></figure><h3 id="03ea632e-81b6-4a0b-b158-295c7f43c342" class="">10. Overall Loss and Entropy Bonus</h3><ul id="bc2959b8-0fa4-49a5-b0c7-f377feba87c4" class="bulleted-list"><li style="list-style-type:disc">The overall loss is calculated as </li></ul><p id="7c358176-c944-4327-a210-22f9ce07e196" class="">         loss = policy_loss - entropy * entropy_coefficient + value_loss * value_coefficient</p><p id="f90347c9-22a4-45aa-8e1c-5028689bf87e" class="">which maximizes an entropy bonus term. Note that the policy parameters and value parameters share the same optimizer.</p><ul id="9a8ca4ab-a500-403a-b2d4-75a20114b869" class="bulleted-list"><li style="list-style-type:disc">This entropy bonus improve exploration by encouraging the action probability distribution to be slightly more random.</li></ul><ul id="531e6f85-773d-4a0a-92ab-6d354be0f53f" class="bulleted-list"><li style="list-style-type:disc">Find no evidence that the entropy term improves performance on continuous control environments.</li></ul><h3 id="926b2b77-b0b3-4df4-b4f7-7e4c097fe193" class="">11. Global Gradient Clipping</h3><ul id="aedb1e30-c91d-48da-9e9b-38b32ca4d182" class="bulleted-list"><li style="list-style-type:disc">For each update in iteration in an epoch, PPO rescales the gradients of the policy and value network so that the ‘global l2 norm’(i.e., the norm of the concatenated gradients of all parameters) does not exceed 0.5.</li></ul><ul id="8348e44c-89e3-4142-a57a-f938e70461ec" class="bulleted-list"><li style="list-style-type:disc">Global gradient clipping to offer a small performance boost.</li></ul><h3 id="35782f26-81b4-4185-bb44-a6395beb2663" class="">13. Shared and separate MLP networks for policy and value functions</h3><ul id="791eca67-bdda-457d-9422-b5164535568a" class="bulleted-list"><li style="list-style-type:disc">By default, PPO uses a simple MLP network consisting of two layers of 64 neurons and Hyperbolic Tangent as the activation function. Then PPO builds a policy head and value head that share the outputs of the MLP network.</li></ul><pre id="d27bceea-321c-4806-8083-128a2fe4197b" class="code"><code>network = Sequential(
+      layer_init(Linear(np.array(envs.single_observation_space.shape).prod(), 64)),
+      Tanh(),
+      layer_init(Linear(64, 64)),
+      Tanh(),
+  )
+  value_head = layer_init(Linear(64, 1), std=1.0)
+  policy_head = layer_init(Linear(64, envs.single_action_space.n), std=0.01)
+  hidden = network(observation)
+  value = value_head(hidden)
+  action = Categorical(policy_head(hidden)).sample()</code></pre><ul id="673d3595-d30d-474e-9379-13e7be2bc20d" class="bulleted-list"><li style="list-style-type:disc">Alternatively, PPO could build a policy function and a value function using separate networks by toggling the <code>value_network=&#x27;copy&#x27;</code> argument. Then the pseudocode looks like this:</li></ul><pre id="9e073129-6b42-4ca8-9b2f-74492ef261ac" class="code code-wrap"><code>value_network = Sequential(
+      layer_init(Linear(np.array(envs.single_observation_space.shape).prod(), 64)),
+      Tanh(),
+      layer_init(Linear(64, 64)),
+      Tanh(),
+      layer_init(Linear(64, 1), std=1.0),
+  )
+  policy_network = Sequential(
+      layer_init(Linear(np.array(envs.single_observation_space.shape).prod(), 64)),
+      Tanh(),
+      layer_init(Linear(64, 64)),
+      Tanh(),
+      layer_init(Linear(64, envs.single_action_space.n), std=0.01),
+  )
+  value = value_network(observation)
+  action = Categorical(policy_network(observation)).sample()</code></pre><h1 id="847b6213-0309-425b-9509-4734ee31e509" class="">9 Atari-specific implementation details</h1><h3 id="702de41c-7135-469f-8d43-d92e0fa618f5" class="">1. The use of <mark class="highlight-orange">NoopResetEnv</mark></h3><ul id="62b3cb52-a44e-46ba-9d7e-0bb43b678a38" class="bulleted-list"><li style="list-style-type:disc">This wrapper samples initial states by taking a random number (between 1 and 30) of no-ops on reset.</li></ul><h3 id="c5a5c485-0481-4e09-9650-19e6108fecf7" class="">2. The use of MaxAndSkipEnv</h3><ul id="8e2907f2-b10b-4bf7-bba1-d351bc3976d0" class="bulleted-list"><li style="list-style-type:disc">This wrapper skip3 4 frames by default, <mark class="highlight-red">repeats the agent’s last action on the skipped frames, and sums up the rewards in the skipped frames. </mark>Such frame-skipping technique could considerably speed up the algorithm because the environment step is computationally cheaper than the agent’s forward pass.</li></ul><ul id="42f01652-9acc-44b9-9980-6249fcdb631f" class="bulleted-list"><li style="list-style-type:disc">This wrapper also <mark class="highlight-red">returns the maximum pixel values over the last tow frames to help deal with some Atari game quirks.</mark></li></ul><ul id="d5e73ece-c7db-4345-8161-ac8610ffb2f9" class="bulleted-list"><li style="list-style-type:disc">The source of this wrapper comes from (Mnih et al., 2015) as shown by the quote below.</li></ul><blockquote id="501a4031-cbfb-40ac-a747-25f4c3a2d5f3" class="">More precisely, the agent sees and selects actions on every kth frame instead of every frame, and its last action is repeated on skipped frames. Because running the emulator forward for one step requires much less computation than having the agent select an action, this technique allows the agent to play roughly k times more games without significantly increasing the runtime. We use k=4 for all games. […] First, to encode a single frame we take the maximum value for each pixel color value over the frame being encoded and the previous frame. This was necessary to remove flickering that is present in games where some objects appear only in even frames while other objects appear only in odd frames, an artifact caused by the limited number of sprites Atari 2600 can display at once.</blockquote><ol type="1" id="ab9406ec-94cc-4506-a7b0-13a03597c7d3" class="numbered-list" start="3"><li>The use of <mark class="highlight-red">EpisodicLifeEnv</mark></li></ol><ul id="67eace50-d791-4322-b04b-c089dd6df5b9" class="bulleted-list"><li style="list-style-type:disc">In the games where there are a life counter such as breakout, this wrapper marks the end of life as the end of episode.</li></ul><ul id="ff217de2-ce8d-447e-aca2-adf9983f6aca" class="bulleted-list"><li style="list-style-type:disc">The source of this wrapper comes from (Mnih et al., 2015) as shown by the quote below.</li></ul><blockquote id="6f1bf3ae-b569-491f-b5e3-e6da1e457f1d" class="">For games where there is a life counter, the Atari 2600 emulator also sends the number of lives left in the game, which is then used to mark the end of an episode during training.</blockquote><ul id="2a35bfc6-9718-4526-afc6-9f17b064aa3d" class="bulleted-list"><li style="list-style-type:disc"><mark class="highlight-red">(Bellemare et al., 2016)Note this wrapper could be detrimental to the agent’s performance and (Machado et al., 2018)have suggested not using this wrapper.</mark></li></ul><h3 id="ae89141c-5483-45f8-9c4e-79e9b8b2d930" class="">4. The use of <mark class="highlight-red">FireResetEnv</mark></h3><ul id="d86402eb-a234-4e5d-9372-5df14a7ac80e" class="bulleted-list"><li style="list-style-type:disc">This wrapper takes the <code>FIRE</code> action on reset for environments that are fixed until firing.</li></ul><h3 id="e4bdc155-8580-4878-a18d-101fa4bbe0fd" class="">5. The use of <mark class="highlight-red">WarpFrame</mark></h3><ul id="0aede764-d528-45f8-8ae1-261105b94b67" class="bulleted-list"><li style="list-style-type:disc">This wrapper warps extracts the Y channel of the 210x160 pixel images and resizes it to 84x84.</li></ul><ul id="5d915249-e764-4345-adaa-5716a2422820" class="bulleted-list"><li style="list-style-type:disc">The source of this wrapper comes from (Mnih et al., 2015) as shown by the quote below.</li></ul><blockquote id="4ab70be3-e3a6-4e79-b6c5-004f6c5d97b9" class="block-color-gray_background">Second, we then extract the Y channel, also known as luminance, from the RGB frame and rescale it to 84x84.</blockquote><p id="50990292-3d39-411f-a07f-7caa4bd96e15" class="">In our implementation, we use the following wrappers to achieve the same purpose.</p><pre id="850053e5-92ba-469a-8cb3-242feb1d43f1" class="code code-wrap"><code>env = gym.wrappers.ResizeObservation(env, (84, 84))
+env = gym.wrappers.GrayScaleObservation(env)</code></pre><h3 id="0f3d9eaa-fb05-4b18-b3ee-f3e572ac3bf3" class="">6. The use of <mark class="highlight-red">ClipRewardEnv</mark></h3><ul id="f3d007e4-50b9-438e-8825-2145a6b59a81" class="bulleted-list"><li style="list-style-type:disc">This wrapper bins reward to {+1, 0, -1} by its sign.</li></ul><ul id="aa4295cd-1028-4b05-9c5b-762c254333ef" class="bulleted-list"><li style="list-style-type:disc">The source of this wrapper comes from (Mnih et al., 2015) as shown by the quote below.</li></ul><blockquote id="7ad95cfe-6bc9-44af-81bf-e96b09741461" class="">As the scale of scores varies greatly from game to game, we clipped all positive rewards at 1 and all negative rewards at -1, leaving 0 rewards unchanged. Clipping the rewards in this manner limits the scale of the error derivatives and makes it easier to use the same learning rate across multiple games. At the same time, it could affect the performance of our agent since it cannot differentiate between rewards of different magnitude.</blockquote><h3 id="0f30e7ee-4b46-4b60-9c9d-7131ba15d444" class="">7. The use of <mark class="highlight-red">FrameStack</mark></h3><ul id="e04ba7fd-5ca5-484b-84af-64d76478093e" class="bulleted-list"><li style="list-style-type:disc">This wrapper stacks m last frames such that the agent can infer the velocity and directions of moving objects.</li></ul><ul id="e0c3f9c2-4647-4356-8343-ff1978aaae6d" class="bulleted-list"><li style="list-style-type:disc">The source of this wrapper comes from (Mnih et al., 2015) as shown by the quote below.</li></ul><blockquote id="27238a2e-ffa0-460c-a500-8605e69f0f8c" class="">The function θ from algorithm 1 described below applies this preprocessing to the m most recent frames and stacks them to produce the input to the Q-function, in which m=4.</blockquote><h3 id="9f919dd3-d1ae-4863-b6e5-e84de058a9a3" class="">8. Shared Nature-CNN network for the policy and value functions</h3><blockquote id="f4880c8c-28da-46fe-a31f-5f42d673966c" class="">For Atari games, PPO uses the same Convolutional Neural Network (CNN) along with the layer initialization technique mentioned earlier to extract features, flatten the extracted features, apply a linear layer to compute the hidden features. Afterward, the policy and value functions share parameters by constructing a policy head and a value head using the hidden features. </blockquote><pre id="23dfee47-2a16-4713-b343-fa526194e7d3" class="code code-wrap"><code>hidden = Sequential(
+      layer_init(Conv2d(4, 32, 8, stride=4)),
+      ReLU(),
+      layer_init(Conv2d(32, 64, 4, stride=2)),
+      ReLU(),
+      layer_init(Conv2d(64, 64, 3, stride=1)),
+      ReLU(),
+      Flatten(),
+      layer_init(Linear(64 * 7 * 7, 512)),
+      ReLU(),
+  )
+  policy = layer_init(Linear(512, envs.single_action_space.n), std=0.01)
+  value = layer_init(Linear(512, 1), std=1)</code></pre><ul id="da8054f8-71c8-461a-8643-794ee30ffcc0" class="bulleted-list"><li style="list-style-type:disc">However, recent work suggests balancing the competing policy and value objective could be problematic, which is what methods like Phasic Policy Gradient are trying to address(Cobbe et al., 2021)</li></ul><p id="fdbb5644-0faa-44af-b9da-d32e5c1c6c19" class="">
+</p></div></article></body></html>
